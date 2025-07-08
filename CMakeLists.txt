@@ -6,7 +6,7 @@ IF(NOT CMAKE_BUILD_TYPE)
   SET(CMAKE_BUILD_TYPE Release)
 ENDIF()
 
-MESSAGE("Build type: " ${CMAKE_BUILD_TYPE})
+message("Build type: ${CMAKE_BUILD_TYPE}")
 
 set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS}  -Wall  -O3 -march=native ")
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall   -O3 -march=native")
@@ -16,7 +16,7 @@ add_compile_options(-Wno-deprecated-declarations)
 # Use C++14 standard
 set(CMAKE_CXX_STANDARD 14)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
-message(STATUS "Using C++14 standard.")
+message(STATUS "Using C++ standard: ${CMAKE_CXX_STANDARD}")
 
 LIST(APPEND CMAKE_MODULE_PATH ${PROJECT_SOURCE_DIR}/cmake_modules)
 
@@ -82,27 +82,56 @@ target_link_libraries(${PROJECT_NAME}
   ${PROJECT_SOURCE_DIR}/Thirdparty/g2o/lib/libg2o.so
 )
 
-# Build examples, place executables in build folder under Examples
-set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/Examples/RGB-D)
+# --- Build App ---
+add_executable(custom_slam app/main_custom_slam.cpp)
 
+set_target_properties(custom_slam PROPERTIES
+    RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/app)
+target_link_libraries(custom_slam ${PROJECT_NAME})
+
+# --- Build RGB-D Examples ---
 add_executable(rgbd_tum Examples/RGB-D/rgbd_tum.cc)
+set_target_properties(rgbd_tum PROPERTIES
+    RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/Examples/RGB-D)
 target_link_libraries(rgbd_tum ${PROJECT_NAME})
 
-set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/Examples/Stereo)
-
+# --- Build Stereo Examples ---
 add_executable(stereo_kitti Examples/Stereo/stereo_kitti.cc)
+set_target_properties(stereo_kitti PROPERTIES
+    RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/Examples/Stereo)
 target_link_libraries(stereo_kitti ${PROJECT_NAME})
 
 add_executable(stereo_euroc Examples/Stereo/stereo_euroc.cc)
+set_target_properties(stereo_euroc PROPERTIES
+    RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/Examples/Stereo)
 target_link_libraries(stereo_euroc ${PROJECT_NAME})
 
-set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/Examples/Monocular)
-
+# --- Build Monocular Examples ---
 add_executable(mono_tum Examples/Monocular/mono_tum.cc)
+set_target_properties(mono_tum PROPERTIES
+    RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/Examples/Monocular)
 target_link_libraries(mono_tum ${PROJECT_NAME})
 
 add_executable(mono_kitti Examples/Monocular/mono_kitti.cc)
+set_target_properties(mono_kitti PROPERTIES
+    RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/Examples/Monocular)
 target_link_libraries(mono_kitti ${PROJECT_NAME})
 
 add_executable(mono_euroc Examples/Monocular/mono_euroc.cc)
+set_target_properties(mono_euroc PROPERTIES
+    RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/Examples/Monocular)
 target_link_libraries(mono_euroc ${PROJECT_NAME})
+
+add_executable(test_vocab_load app/test_vocab_load.cpp)
+target_include_directories(test_vocab_load PRIVATE ${PROJECT_SOURCE_DIR}/include)
+target_link_libraries(test_vocab_load ${PROJECT_NAME})
+
+set_target_properties(test_vocab_load PROPERTIES
+    RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/app)
+
+# --- Build TCP SLAM Server ---
+add_executable(tcp_slam_server app/tcp_slam_server.cpp)
+target_include_directories(tcp_slam_server PRIVATE ${PROJECT_SOURCE_DIR}/include)
+target_link_libraries(tcp_slam_server ${PROJECT_NAME})
+set_target_properties(tcp_slam_server PROPERTIES
+    RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/app)

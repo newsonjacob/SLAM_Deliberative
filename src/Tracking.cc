@@ -21,6 +21,12 @@
 
 #include "Tracking.h"
 
+#include <sys/socket.h>
+#include <netinet/in.h>
+#include <arpa/inet.h>
+#include <unistd.h>
+#include <sstream>
+
 #include<opencv2/core/core.hpp>
 #include<opencv2/features2d/features2d.hpp>
 #include <opencv2/imgproc/imgproc_c.h>
@@ -44,6 +50,45 @@ using namespace std;
 
 namespace ORB_SLAM2
 {
+
+void SendPose(const cv::Mat& Tcw)
+{
+    if (Tcw.empty()) return;
+
+    // Extract rotation and translation
+    cv::Mat Rcw = Tcw.rowRange(0, 3).colRange(0, 3);
+    cv::Mat tcw = Tcw.rowRange(0, 3).col(3);
+
+    // Convert rotation to quaternion (using OpenCV)
+    cv::Mat R;
+    cv::Rodrigues(Rcw, R);  // fallback if needed
+    cv::Vec3f rvec;
+    cv::Rodrigues(Rcw, rvec);
+    float tx = tcw.at<float>(0), ty = tcw.at<float>(1), tz = tcw.at<float>(2);
+
+    std::ostringstream oss;
+    oss << tx << " " << ty << " " << tz;
+
+    std::string message = oss.str();
+
+    // Send to localhost:5005
+    int sock = socket(AF_INET, SOCK_STREAM, 0);
+    if (sock < 0) return;
+
+    sockaddr_in serv_addr;
+    serv_addr.sin_family = AF_INET;
+    serv_addr.sin_port = htons(5005);
+    inet_pton(AF_INET, "127.0.0.1", &serv_addr.sin_addr);
+
+    if (connect(sock, (struct sockaddr*)&serv_addr, sizeof(serv_addr)) < 0)
+    {
+        close(sock);
+        return;
+    }
+
+    send(sock, message.c_str(), message.size(), 0);
+    close(sock);
+}
 
 Tracking::Tracking(System *pSys, ORBVocabulary* pVoc, FrameDrawer *pFrameDrawer, MapDrawer *pMapDrawer, Map *pMap, KeyFrameDatabase* pKFDB, const string &strSettingPath, const int sensor):
     mState(NO_IMAGES_YET), mSensor(sensor), mbOnlyTracking(false), mbVO(false), mpORBVocabulary(pVoc),
@@ -268,6 +313,7 @@ cv::Mat Tracking::GrabImageMonocular(const cv::Mat &im, const double &timestamp)
 
 void Tracking::Track()
 {
+    std::cout << "[DEBUG] Tracking state: " << mState << std::endl;
     if(mState==NO_IMAGES_YET)
     {
         mState = NOT_INITIALIZED;
@@ -486,10 +532,12 @@ void Tracking::Track()
 
         mLastFrame = Frame(mCurrentFrame);
     }
-
+    
     // Store frame pose information to retrieve the complete camera trajectory afterwards.
     if(!mCurrentFrame.mTcw.empty())
     {
+        std::cout << "Sending pose..." << std::endl;
+        SendPose(mCurrentFrame.mTcw);
         cv::Mat Tcr = mCurrentFrame.mTcw*mCurrentFrame.mpReferenceKF->GetPoseInverse();
         mlRelativeFramePoses.push_back(Tcr);
         mlpReferences.push_back(mpReferenceKF);
